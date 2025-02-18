@@ -1,0 +1,97 @@
+
+services:
+
+  backend:
+    build: ./backend
+    command: bash -c "PYTHONPATH=. uvicorn app.main:app --reload --host 0.0.0.0"    
+    ports:
+    - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://citizix_user:S3cret@postgres:5432/faq_db
+      - OPENAI_API_KEY=pk-qqkQTYBAiKETpdJXAOCSLilMtuMCqAtnwVYWegpkUbaMReTQ
+      - OPENAI_BASE_URL=https://api.pawan.krd/cosmosrp/v1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      
+
+    labels:
+    - "backend=true" 
+    networks:
+      - app-network
+
+  frontend:
+    build: 
+      context: ./frontend/project
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    networks:
+      - app-network
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:14-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=S3cret
+      - POSTGRES_USER=citizix_user
+      - POSTGRES_DB=faq_db
+    healthcheck:  # Add health check configuration
+      test: ["CMD-SHELL", "pg_isready -U citizix_user -d faq_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  loki:
+    image: grafana/loki:latest
+    volumes:
+      - ./loki/config/config.yml:/etc/loki/config.yml
+    command: -config.file=/etc/loki/config.yml
+    networks:
+      - app-network
+
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./promtail/config/config.yml:/etc/promtail/config.yaml
+      - /var/log:/var/log
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - app-network
+    depends_on:
+      - loki
+
+
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+
+    ports:
+      - 3000:3000
+    networks:
+      - app-network
+    depends_on:
+      - loki
+      - promtail
+    
+
+
+
+volumes:
+  postgres_data:
+
+
+
+networks:
+  app-network:
+    driver: bridge
