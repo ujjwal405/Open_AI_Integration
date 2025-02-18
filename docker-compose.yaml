@@ -8,7 +8,7 @@ services:
     - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://citizix_user:S3cret@postgres:5432/faq_db
-      - OPENAI_API_KEY=pk-qqkQTYBAiKETpdJXAOCSLilMtuMCqAtnwVYWegpkUbaMReTQ
+      - OPENAI_API_KEY=
       - OPENAI_BASE_URL=https://api.pawan.krd/cosmosrp/v1
     depends_on:
       postgres:
